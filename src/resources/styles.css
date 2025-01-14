@@ -1,0 +1,144 @@
+@font-face {
+    font-family: 'Quattrocento_Sans';
+    src: url('./Quattrocento_Sans/QuattrocentoSans-Regular.ttf') format('ttf');
+    font-weight: 600;
+    font-style: normal;
+}
+
+* {
+    font-family: 'Quattrocento_Sans', Arial, Helvetica, sans-serif;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    color: azure;
+    background-color: rgb(23, 23, 23);
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 60px 1fr 60px;
+    margin: 0 auto;
+    height: 100vh;
+    border-bottom: 2px solid azure;
+}
+
+header {
+    grid-row: 1 / 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.header-container {
+    width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.updates {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    border: 1px solid rgb(23, 23, 23);
+    height: 40px;
+    width: 500px;
+    background-color: rgb(75, 85, 99);
+    padding-left: 5px;
+}
+
+main {
+    padding-top: 50px;
+    grid-column: 1 / 2;
+    grid-row: 2 / 3;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.game-space {
+    width: 1200px;
+    height: 400px;
+    margin: 0 auto;
+    display: grid;
+    place-items: start center;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+    gap: 20px;
+}
+
+.one {
+    grid-column: 1 / 2;
+}
+
+.two {
+    grid-column: 2 / 3;
+}
+
+.player-space {
+    width: 400px;
+    height: inherit;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 20px 1fr;
+}
+
+.columns {
+    grid-row: 1 / 2;
+    height: 25px;
+    padding-left: 25px;
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    justify-items: center;
+    align-items: start;
+}
+
+.rows-and-board {
+    grid-row: 2 / 3;
+    display: grid;
+    grid-template-columns: 25px 1fr;
+}
+
+.rows-identity {
+    display: grid;
+    grid-template-rows: repeat(10, 1fr);
+    justify-items: center;
+    align-items: center;
+    grid-column: 1 / 2;
+}
+
+.rows-and-board div:nth-child(2) {
+    grid-column: 2 / 3;
+}
+
+.player-one-board,
+.player-two-board {
+    border: 2px solid rgb(37, 99, 235);
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    grid-template-rows: repeat(10, 1fr);
+    gap: 2px;
+    background-color: rgb(37, 99, 235);
+}
+
+.cell {
+    background-color: rgb(23, 23, 23);
+}
+
+footer {
+    grid-column: 1 / 2;
+    grid-row: 3 / 4;
+    align-self: center;
+    margin: 0 auto;
+    width: 1200px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.fun-stuff {
+    display: flex;
+    justify-content: space-evenly;
+    gap: 15px;
+}
