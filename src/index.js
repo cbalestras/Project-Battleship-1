@@ -1,3 +1,3 @@
-// import { format } from "date-fns";
-// import _ from 'lodash';
-console.log("Template works.")
+import './resources/styles.css';
+import { gameDisplay } from './playGame';
+console.log("Template works.");
