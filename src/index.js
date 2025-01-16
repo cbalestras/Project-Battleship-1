@@ -1,3 +1,3 @@
 import './resources/styles.css';
-import { gameDisplay } from './playGame';
+import { gameDisplay } from './gameDisplay';
 console.log("Template works.");
