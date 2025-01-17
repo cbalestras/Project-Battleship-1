@@ -1,5 +1,5 @@
-import { GameBoard } from "./gameBoard";
-import { Ship } from "./ship";
+import { GameBoard } from "../src/gameBoard";
+import { Ship } from "../src/ship";
 
 describe('GameBoard', () => {
     // Test to ensure the board initializes with no ships
