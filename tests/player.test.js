@@ -1,4 +1,4 @@
-import { Player } from "./player";
+import { Player } from "../src/player";
 
 describe('Player', () => {
     test('Player is a computer', () => {

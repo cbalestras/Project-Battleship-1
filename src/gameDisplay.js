@@ -5,34 +5,84 @@ import { Ship } from "./ship";
 const computerPlayer = new Player('computer');
 const realPlayer = new Player('real');
 
-// Create ships for each player
-// Computer ships
-const computerCarrier = new Ship(5),
-    computerBattleship = new Ship(4),
-    computerDestroyer = new Ship(3),
-    computerSubmarine = new Ship(3),
-    computerPatrolBoat = new Ship(2);
+// Define the computer ships
+const computerShips = [
+    new Ship(5), // Carrier
+    new Ship(4), // Battleship
+    new Ship(3), // Destroyer
+    new Ship(3), // Submarine
+    new Ship(2)  // Patrol Boat
+];
 
 // Real player's ships
-const realPlayerCarrier = new Ship(5),
-    realPlayerBattleship = new Ship(4),
-    realPlayerDestroyer = new Ship(3),
-    realPlayerSubmarine = new Ship(3),
-    realPlayerPatrolBoat = new Ship(2);
+const realPlayerShips = [
+    new Ship(5), // Carrier
+    new Ship(4), // Battleship
+    new Ship(3), // Destroyer
+    new Ship(3), // Submarine
+    new Ship(2)  // Patrol Boat
+];
 
-// Place computer's ships on board
-computerPlayer.gameBoard.placeShip([0, 'A'], [0, 'E'], computerCarrier);
-computerPlayer.gameBoard.placeShip([2, 'B'], [2, 'E'], computerBattleship);
-computerPlayer.gameBoard.placeShip([4, 'C'], [4, 'E'], computerDestroyer);
-computerPlayer.gameBoard.placeShip([6, 'D'], [6, 'F'], computerSubmarine);
-computerPlayer.gameBoard.placeShip([8, 'E'], [8, 'F'], computerPatrolBoat);
+// Function to get random coordinates for a ship
+const getRandomCoordinates = (shipLength) => {
+    const isHorizontal = Math.random() < 0.5;
+    const maxIndex = 10 - shipLength;
 
-// Place Real player's ships on board
-realPlayer.gameBoard.placeShip([1, 'A'], [1, 'E'], realPlayerCarrier);
-realPlayer.gameBoard.placeShip([3, 'B'], [3, 'E'], realPlayerBattleship);
-realPlayer.gameBoard.placeShip([5, 'C'], [5, 'E'], realPlayerDestroyer);
-realPlayer.gameBoard.placeShip([7, 'D'], [7, 'F'], realPlayerSubmarine);
-realPlayer.gameBoard.placeShip([9, 'E'], [9, 'F'], realPlayerPatrolBoat);
+    let startX, startY, endX, endY;
+
+    if (isHorizontal) {
+        startX = Math.floor(Math.random() * 10);
+        startY = Math.floor(Math.random() * (maxIndex + 1));
+        endX = startX;
+        endY = startY + shipLength - 1;
+    } else {
+        startX = Math.floor(Math.random() * (maxIndex + 1));
+        startY = Math.floor(Math.random() * 10);
+        endX = startX + shipLength - 1;
+        endY = startY;
+    }
+
+    const startYAlpha = String.fromCharCode(65 + startY);
+    const endYAlpha = String.fromCharCode(65 + endY);
+
+    return [[startX, startYAlpha], [endX, endYAlpha]];
+};
+
+// Function to check if a ship can be placed at the given coordinates
+const canPlaceShip = (gameBoard, startX, startYAlpha, endX, endYAlpha) => {
+    const startY = startYAlpha.charCodeAt(0) - 65;
+    const endY = endYAlpha.charCodeAt(0) - 65;
+
+    if (startX === endX) { // Horizontal placement
+        for (let i = startY; i <= endY; i++) {
+            if (gameBoard.board[startX][i] !== 0) return false;
+        }
+    } else { // Vertical placement
+        for (let i = startX; i <= endX; i++) {
+            if (gameBoard.board[i][startY] !== 0) return false;
+        }
+    }
+    return true;
+};
+
+// Placer function to place all ships on the board
+const placeShipsOnBoard = (gameBoard, ships) => {
+    ships.forEach(ship => {
+        let placed = false;
+        while (!placed) {
+            const [[startX, startYAlpha], [endX, endYAlpha]] = getRandomCoordinates(ship.length);
+
+            if (canPlaceShip(gameBoard, startX, startYAlpha, endX, endYAlpha)) {
+                gameBoard.placeShip([startX, startYAlpha], [endX, endYAlpha], ship);
+                placed = true;
+            }
+        }
+    });
+};
+
+// Place computer ships on its board.
+placeShipsOnBoard(computerPlayer.gameBoard, computerShips);
+placeShipsOnBoard(realPlayer.gameBoard, realPlayerShips);
 
 class GameDisplay {
     constructor(contentHolder, realPlayer, computerPlayer) {
@@ -40,15 +90,17 @@ class GameDisplay {
         this.realPlayer = realPlayer;
         this.computerPlayer = computerPlayer;
         this.activePlayer = this.realPlayer;
+        this.computerMoves = new Set();
 
-        // Bind the fireAttackOnBoard method
+        // Bind methods with event listners to class to keep context of this.
         this.fireAttackOnBoardHandler = this.fireAttackOnBoard.bind(this);
+        this.randomizePlayerShipsHandler = this.randomizePlayerShips.bind(this);
     }
 
     createGrid(gridContainer) {
         const rows = 10, columns = 10;
 
-        for (let row = 0; row <rows; row++) {
+        for (let row = 0; row < rows; row++) {
             for (let column = 0; column < columns; column++) {
                 const cell = document.createElement('div');
                 cell.classList.add('cell');
@@ -158,32 +210,154 @@ class GameDisplay {
     switchPlayerTurn() {
         console.log(`Old player: ${this.activePlayer.type}`);
     
-        // Switch active player
+        // Correctly switch player turns
         this.activePlayer = this.activePlayer === this.realPlayer ? this.computerPlayer : this.realPlayer;
         console.log(`Active player: ${this.activePlayer.type}`);
     
-        const gridBoxOne = document.querySelector('.player-one-board');
-        const gridBoxTwo = document.querySelector('.player-two-board');
+        const playerGrid = document.querySelector('.player-one-board');
+        const computerGrid = document.querySelector('.player-two-board');
     
-        // Reset event listeners to avoid stacking
-        gridBoxOne.removeEventListener('click', this.fireAttackOnBoardHandler);
-        gridBoxTwo.removeEventListener('click', this.fireAttackOnBoardHandler);
-    
-        // Enable clicks for the active player only
         if (this.activePlayer.type === 'real') {
-            gridBoxTwo.addEventListener('click', this.fireAttackOnBoardHandler);  // Real player attacks computer grid
+            // Player should attack the computer's grid
+            computerGrid.addEventListener('click', this.fireAttackOnBoardHandler);
+            playerGrid.removeEventListener('click', this.fireAttackOnBoardHandler);
         } else {
-            gridBoxOne.addEventListener('click', this.fireAttackOnBoardHandler);  // Computer (simulated) attacks real player's grid
+            // Disable player's click during the computer's turn
+            computerGrid.removeEventListener('click', this.fireAttackOnBoardHandler);
+            playerGrid.removeEventListener('click', this.fireAttackOnBoardHandler);
+    
+            // Automate computer's move after a short delay
+            setTimeout(() => {
+                this.computerMove();
+            }, 500);
         }
     
-        // Update turn indicator
         this.updateActivePlayer(this.activePlayer);
+    }
+    
+    computerMove() {
+        let randomIndex;
+    
+        // Keep generating a new move until an unused spot is found
+        do {
+            randomIndex = Math.floor(Math.random() * 100);
+        } while (this.computerMoves.has(randomIndex));
+    
+        // Record this move to prevent repeating it
+        this.computerMoves.add(randomIndex);
+    
+        const row = Math.floor(randomIndex / 10);
+        const column = randomIndex % 10;
+        const [hitXCoordinate, hitYCoordinate] = [row, this.indexToAlphabet(column)];
+    
+        // Perform the attack
+        let winStatus = this.dropAttackOnBoard('player-one-board', [hitXCoordinate, hitYCoordinate]);
+    
+        // Update the UI
+        const gridBoxOne = document.querySelector('.player-one-board');
+        const slot = gridBoxOne.children[randomIndex];
+        this.updateBoardOnUI('player-one-board', randomIndex, slot);
+    
+        // Check for wins or switch turns
+        if (winStatus) {
+            this.endGame('player-one-board');
+        } else {
+            this.switchPlayerTurn();
+        }
+    }  
+    
+    showPlayerRealPlayerShipPlacement() {
+        const gridBoxOne = document.querySelector('.player-one-board');
+        const flatBoard = this.realPlayer.gameBoard.board.flat();
+
+        // Clear existing UI
+        Array.from(gridBoxOne.children).forEach(cell => cell.style.backgroundColor = '');
+
+        // Update UI with ship placements
+        flatBoard.forEach((cellValue, index) => {
+            if (cellValue === 1) {
+                gridBoxOne.children[index].style.backgroundColor = 'green'; // Use green to show ships
+            }
+        });
+    }
+
+    randomizePlayerShips() {
+        // Clear the board first
+        this.realPlayer.gameBoard.board = Array.from({ length: 10 }, () => Array(10).fill(0));
+        this.realPlayer.gameBoard.shipsHeld = [];
+
+        // Place ships randomly
+        placeShipsOnBoard(this.realPlayer.gameBoard, realPlayerShips);
+
+        // Update the UI to reflect the new placements
+        this.showPlayerRealPlayerShipPlacement();
     }
        
     startGame() {
+        // Allow real player to fire moves on computer grid.
         const gridBoxTwo = document.querySelector('.player-two-board');
         gridBoxTwo.addEventListener('click', this.fireAttackOnBoardHandler);
+
+        // Remove display for real player ships.
+        const gridBoxOne = document.querySelector('.player-one-board');
+        Array.from(gridBoxOne.children).forEach(cell => {
+            cell.style.backgroundColor = 'rgb(23, 23, 23)'; // Reset to the desired color
+        })
+
+        // Remove randomize and play buttons.
+        const randomizeButton = document.getElementById('randomizeButton');
+        const playButton = document.getElementById('playButton');
+        
+        if (randomizeButton) randomizeButton.remove();
+        if (playButton) playButton.remove();
     }
+
+    showEndGamePopup(winner) {
+        // Create the popup container
+        const popup = document.createElement('div');
+        popup.classList.add('popup');
+    
+        // Create the popup content
+        const popupContent = document.createElement('div');
+        popupContent.classList.add('popup-content');
+    
+        // Create the winner message
+        const winnerMessage = document.createElement('p');
+        winnerMessage.textContent = `${winner} Win!`;
+    
+        // Create the restart button
+        const restartButton = document.createElement('button');
+        restartButton.classList.add('restart');
+        restartButton.textContent = 'Restart Game';
+        restartButton.addEventListener('click', () => {
+            location.reload(); // Refresh the page to restart the game
+        });
+    
+        // Append elements to the popup content
+        popupContent.appendChild(winnerMessage);
+        popupContent.appendChild(restartButton);
+    
+        // Append popup content to the popup container
+        popup.appendChild(popupContent);
+    
+        // Append the popup to the body
+        document.body.appendChild(popup);
+    
+        // Style the popup (you can adjust these styles as needed)
+        popup.style.position = 'fixed';
+        popup.style.top = '50%';
+        popup.style.left = '50%';
+        popup.style.transform = 'translate(-50%, -50%)';
+        popup.style.backgroundColor = 'green';
+        popup.style.border = '2px solid azure';
+        popup.style.borderRadius = '5px';
+        popup.style.padding = '10px 20px';
+        popup.style.zIndex = '1000';
+        popup.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
+        popupContent.style.textAlign = 'center';
+    }
+
+
     
     endGame(hitPlayerBoard) {
         console.log("Game ends...");
@@ -198,6 +372,9 @@ class GameDisplay {
         activeplayerIndicator.textContent = hitPlayerBoard === 'player-one-board' 
             ? 'Computer Wins!' 
             : 'You win!';
+        // Determine winner and show popup
+        const winner = hitPlayerBoard === 'player-one-board' ? 'Computer' : 'You';
+        this.showEndGamePopup(winner);
     }    
        
 }
@@ -208,6 +385,14 @@ const gameSpace = document.querySelector('.game-space');
 // initialize game controller.
 const gameDisplay = new GameDisplay(gameSpace, realPlayer, computerPlayer);
 gameDisplay.createPlayerGrids();
-gameDisplay.startGame();
+gameDisplay.showPlayerRealPlayerShipPlacement();
+
+// Event listener for the randomize button
+document.getElementById('randomizeButton').addEventListener('click', gameDisplay.randomizePlayerShipsHandler);
+
+// Event listener for the play button
+document.getElementById('playButton').addEventListener('click', () => {
+    gameDisplay.startGame();
+});
 
 export { gameDisplay };

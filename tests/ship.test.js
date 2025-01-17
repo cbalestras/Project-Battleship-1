@@ -1,4 +1,4 @@
-import { Ship } from "./ship";
+import { Ship } from "../src/ship";
 
 describe('Ship', () => {
     // Test to ensure the ship initializes with the correct length and no hits
