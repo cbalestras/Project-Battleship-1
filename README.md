@@ -31,7 +31,7 @@ This project is a JavaScript implementation of the classic Battleship game. The 
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/john-walter-munene/Project-Battleship
    ```
 
 2. Navigate to the project directory:
