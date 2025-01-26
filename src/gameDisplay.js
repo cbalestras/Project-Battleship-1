@@ -343,7 +343,7 @@ class GameDisplay {
         // Append the popup to the body
         document.body.appendChild(popup);
     
-        // Style the popup (you can adjust these styles as needed)
+        // Style the popup
         popup.style.position = 'fixed';
         popup.style.top = '50%';
         popup.style.left = '50%';
