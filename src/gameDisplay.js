@@ -5,6 +5,12 @@ import { Ship } from "./ship";
 const computerPlayer = new Player('computer');
 const realPlayer = new Player('real');
 
+// Map to track ship positions and hit status
+const shipPositions = {
+    computerShips: new Map(),
+    playerShips: new Map()
+};
+
 // Define the computer ships
 const computerShips = [
     new Ship(5), // Carrier
@@ -65,8 +71,79 @@ const canPlaceShip = (gameBoard, startX, startYAlpha, endX, endYAlpha) => {
     return true;
 };
 
+// Helper function to track ship positions
+const trackShipPosition = (ship, startX, startYAlpha, endX, endYAlpha, isComputer) => {
+    const startY = startYAlpha.charCodeAt(0) - 65;
+    const endY = endYAlpha.charCodeAt(0) - 65;
+    const positions = [];
+    
+    if (startX === endX) { // Horizontal
+        for (let i = 0; i < ship.length; i++) {
+            const cellIndex = startX * 10 + (startY + i);
+            positions.push(cellIndex);
+        }
+    } else { // Vertical
+        for (let i = 0; i < ship.length; i++) {
+            const cellIndex = (startX + i) * 10 + startY;
+            positions.push(cellIndex);
+        }
+    }
+    
+    // Store in the shipPositions map
+    const mapToUse = isComputer ? shipPositions.computerShips : shipPositions.playerShips;
+    const shipId = `ship_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    mapToUse.set(shipId, {
+        positions: positions,
+        hits: new Set(),
+        length: ship.length,
+        isSunk: false
+    });
+    
+    return shipId;
+};
+
+// Function to check if a ship is sunk
+const checkIfShipSunk = (shipId, hitIndex, isComputer) => {
+    const mapToUse = isComputer ? shipPositions.computerShips : shipPositions.playerShips;
+    const ship = mapToUse.get(shipId);
+    
+    if (!ship) return false;
+    
+    // Add this hit
+    ship.hits.add(hitIndex);
+    
+    // Check if all positions are hit
+    const isSunk = ship.positions.every(pos => ship.hits.has(pos));
+    
+    if (isSunk && !ship.isSunk) {
+        ship.isSunk = true;
+        return true;
+    }
+    
+    return false;
+};
+
+// Function to find which ship was hit
+const findHitShip = (hitIndex, isComputer) => {
+    const mapToUse = isComputer ? shipPositions.computerShips : shipPositions.playerShips;
+    
+    for (const [shipId, ship] of mapToUse.entries()) {
+        if (ship.positions.includes(hitIndex) && !ship.isSunk) {
+            return shipId;
+        }
+    }
+    
+    return null;
+};
+
+// Function to get all positions of a ship
+const getShipPositions = (shipId, isComputer) => {
+    const mapToUse = isComputer ? shipPositions.computerShips : shipPositions.playerShips;
+    return mapToUse.get(shipId)?.positions || [];
+};
+
 // Placer function to place all ships on the board
-const placeShipsOnBoard = (gameBoard, ships) => {
+const placeShipsOnBoard = (gameBoard, ships, isComputer) => {
     ships.forEach(ship => {
         let placed = false;
         while (!placed) {
@@ -74,6 +151,7 @@ const placeShipsOnBoard = (gameBoard, ships) => {
 
             if (canPlaceShip(gameBoard, startX, startYAlpha, endX, endYAlpha)) {
                 gameBoard.placeShip([startX, startYAlpha], [endX, endYAlpha], ship);
+                trackShipPosition(ship, startX, startYAlpha, endX, endYAlpha, isComputer);
                 placed = true;
             }
         }
@@ -81,8 +159,8 @@ const placeShipsOnBoard = (gameBoard, ships) => {
 };
 
 // Place computer ships on its board.
-placeShipsOnBoard(computerPlayer.gameBoard, computerShips);
-placeShipsOnBoard(realPlayer.gameBoard, realPlayerShips);
+placeShipsOnBoard(computerPlayer.gameBoard, computerShips, true);
+placeShipsOnBoard(realPlayer.gameBoard, realPlayerShips, false);
 
 class GameDisplay {
     constructor(contentHolder, realPlayer, computerPlayer) {
@@ -149,14 +227,34 @@ class GameDisplay {
             const column = index % 10;
     
             const [hitXCoordinate, hitYCoordinate] = [row, this.indexToAlphabet(column)];
-            // console.log(`Firing at: [${hitXCoordinate}, '${hitYCoordinate}'] on ${hitPlayerBoard}`);
     
             // Drop attack on board
-            let winStatus = this.dropAttackOnBoard(hitPlayerBoard, [hitXCoordinate, hitYCoordinate]);
-            this.updateBoardOnUI(hitPlayerBoard, index, slot);
+            let attackResult = this.dropAttackOnBoard(hitPlayerBoard, [hitXCoordinate, hitYCoordinate]);
+            this.updateBoardOnUI(hitPlayerBoard, index, slot, attackResult.isHit);
+            
+            // Check if a ship was hit
+            if (attackResult.isHit) {
+                // Find which ship was hit
+                const shipId = findHitShip(index, true); // true means it's a computer ship
+                
+                if (shipId) {
+                    // Check if the ship is now sunk
+                    const isSunk = checkIfShipSunk(shipId, index, true);
+                    
+                    if (isSunk) {
+                        // Get all positions of the ship and update their styling
+                        const shipPositions = getShipPositions(shipId, true);
+                        this.updateSunkShipStyling(shipPositions, hitPlayerBoard);
+                        this.showSunkAnnouncement(shipPositions.length);
+                    } else {
+                        // Just show regular hit announcement
+                        this.showHitAnnouncement(hitYCoordinate + (hitXCoordinate + 1));
+                    }
+                }
+            }
     
             // Check for winner
-            if (winStatus) {
+            if (attackResult.winStatus) {
                 console.log("Win condition met!");
                 this.endGame(hitPlayerBoard);
             } else {
@@ -168,28 +266,42 @@ class GameDisplay {
 
     dropAttackOnBoard(hitPlayerBoard, [targetXCoordinate, targetYCoordinate]) {
         let winStatus = undefined;
+        let isHit = false;
 
         // Handle hits made to computer board.
         if (hitPlayerBoard === 'player-two-board') {
             let attackStatus = this.computerPlayer.gameBoard.receiveAttack([targetXCoordinate, targetYCoordinate]);
-            if (attackStatus) winStatus = this.computerPlayer.gameBoard.overallShipSinkStatus();
+            if (attackStatus) {
+                winStatus = this.computerPlayer.gameBoard.overallShipSinkStatus();
+                isHit = this.computerPlayer.gameBoard.board[targetXCoordinate][targetYCoordinate.charCodeAt(0) - 65] === 'X';
+            }
         }
 
         // Handle hits made to real player board.
         if (hitPlayerBoard === 'player-one-board') {
             let attackStatus = this.realPlayer.gameBoard.receiveAttack([targetXCoordinate, targetYCoordinate]);
-            if (attackStatus) winStatus = this.realPlayer.gameBoard.overallShipSinkStatus();
+            if (attackStatus) {
+                winStatus = this.realPlayer.gameBoard.overallShipSinkStatus();
+                isHit = this.realPlayer.gameBoard.board[targetXCoordinate][targetYCoordinate.charCodeAt(0) - 65] === 'X';
+            }
         }
 
-        return winStatus;
+        return { winStatus, isHit };
     }
 
-    updateBoardOnUI(hitPlayerBoard, hitSlotIndex, hitSlot) {
+    updateBoardOnUI(hitPlayerBoard, hitSlotIndex, hitSlot, isHit) {
         // Update computer's board
         if (hitPlayerBoard === 'player-two-board') {
             const computerLogicBoardCopy = this.computerPlayer.gameBoard.board.slice().flat();
             const updateSymbol = computerLogicBoardCopy[hitSlotIndex];
             hitSlot.textContent = updateSymbol;
+            
+            // Apply appropriate styling
+            if (isHit) {
+                hitSlot.classList.add('hit-ship');
+            } else if (updateSymbol === 'O') {
+                hitSlot.classList.add('miss-hit');
+            }
         }
 
         // Update real player's board
@@ -197,7 +309,26 @@ class GameDisplay {
             const realPlayerLogicBoardCopy = this.realPlayer.gameBoard.board.slice().flat();
             const updateSymbol = realPlayerLogicBoardCopy[hitSlotIndex];
             hitSlot.textContent = updateSymbol;
+            
+            // Apply appropriate styling
+            if (isHit) {
+                hitSlot.classList.add('hit-ship');
+            } else if (updateSymbol === 'O') {
+                hitSlot.classList.add('miss-hit');
+            }
         }
+    }
+    
+    updateSunkShipStyling(shipPositions, hitPlayerBoard) {
+        const board = hitPlayerBoard === 'player-two-board' 
+            ? document.querySelector('.player-two-board')
+            : document.querySelector('.player-one-board');
+            
+        shipPositions.forEach(position => {
+            const cell = board.children[position];
+            cell.classList.remove('hit-ship');
+            cell.classList.add('sunk-ship');
+        });
     }
     
     indexToAlphabet(index) {
@@ -251,15 +382,36 @@ class GameDisplay {
         const [hitXCoordinate, hitYCoordinate] = [row, this.indexToAlphabet(column)];
     
         // Perform the attack
-        let winStatus = this.dropAttackOnBoard('player-one-board', [hitXCoordinate, hitYCoordinate]);
+        let attackResult = this.dropAttackOnBoard('player-one-board', [hitXCoordinate, hitYCoordinate]);
     
         // Update the UI
         const gridBoxOne = document.querySelector('.player-one-board');
         const slot = gridBoxOne.children[randomIndex];
-        this.updateBoardOnUI('player-one-board', randomIndex, slot);
+        this.updateBoardOnUI('player-one-board', randomIndex, slot, attackResult.isHit);
+        
+        // Check if a ship was hit
+        if (attackResult.isHit) {
+            // Find which ship was hit
+            const shipId = findHitShip(randomIndex, false); // false means it's a player ship
+            
+            if (shipId) {
+                // Check if the ship is now sunk
+                const isSunk = checkIfShipSunk(shipId, randomIndex, false);
+                
+                if (isSunk) {
+                    // Get all positions of the ship and update their styling
+                    const shipPositions = getShipPositions(shipId, false);
+                    this.updateSunkShipStyling(shipPositions, 'player-one-board');
+                    this.showSunkAnnouncement(shipPositions.length, true);
+                } else {
+                    // Just show regular hit announcement
+                    this.showHitAnnouncement(hitYCoordinate + (hitXCoordinate + 1), true);
+                }
+            }
+        }
     
         // Check for wins or switch turns
-        if (winStatus) {
+        if (attackResult.winStatus) {
             this.endGame('player-one-board');
         } else {
             this.switchPlayerTurn();
@@ -271,12 +423,14 @@ class GameDisplay {
         const flatBoard = this.realPlayer.gameBoard.board.flat();
 
         // Clear existing UI
-        Array.from(gridBoxOne.children).forEach(cell => cell.style.backgroundColor = '');
+        Array.from(gridBoxOne.children).forEach(cell => {
+            cell.classList.remove('player-ship');
+        });
 
         // Update UI with ship placements
         flatBoard.forEach((cellValue, index) => {
             if (cellValue === 1) {
-                gridBoxOne.children[index].style.backgroundColor = 'green'; // Use green to show ships
+                gridBoxOne.children[index].classList.add('player-ship');
             }
         });
     }
@@ -286,11 +440,72 @@ class GameDisplay {
         this.realPlayer.gameBoard.board = Array.from({ length: 10 }, () => Array(10).fill(0));
         this.realPlayer.gameBoard.shipsHeld = [];
 
+        // Clear the ship tracking
+        shipPositions.playerShips.clear();
+
         // Place ships randomly
-        placeShipsOnBoard(this.realPlayer.gameBoard, realPlayerShips);
+        placeShipsOnBoard(this.realPlayer.gameBoard, realPlayerShips, false);
 
         // Update the UI to reflect the new placements
         this.showPlayerRealPlayerShipPlacement();
+    }
+    
+    showHitAnnouncement(position, isComputer = false) {
+        // Create the announcement element if it doesn't exist
+        let hitAnnouncement = document.querySelector('.hit-announcement');
+        if (!hitAnnouncement) {
+            hitAnnouncement = document.createElement('div');
+            hitAnnouncement.classList.add('hit-announcement');
+            document.body.appendChild(hitAnnouncement);
+        }
+        
+        // Set the content of the announcement
+        hitAnnouncement.innerHTML = `
+            <h3>DIRECT HIT!</h3>
+            <p>${isComputer ? 'Computer' : 'You'} hit a ship at ${position}!</p>
+        `;
+        
+        // Show the announcement
+        hitAnnouncement.classList.add('show');
+        
+        // Hide after 2 seconds
+        setTimeout(() => {
+            hitAnnouncement.classList.remove('show');
+        }, 1500);
+    }
+    
+    showSunkAnnouncement(shipLength, isComputer = false) {
+        // Create the sunk announcement element if it doesn't exist
+        let sunkAnnouncement = document.querySelector('.sunk-announcement');
+        if (!sunkAnnouncement) {
+            sunkAnnouncement = document.createElement('div');
+            sunkAnnouncement.classList.add('sunk-announcement');
+            document.body.appendChild(sunkAnnouncement);
+        }
+        
+        // Determine ship type based on length
+        let shipType;
+        switch (shipLength) {
+            case 5: shipType = "Carrier"; break;
+            case 4: shipType = "Battleship"; break;
+            case 3: shipType = "Cruiser"; break;
+            case 2: shipType = "Destroyer"; break;
+            default: shipType = "Ship";
+        }
+        
+        // Set the content of the announcement
+        sunkAnnouncement.innerHTML = `
+            <h3>SHIP SUNK!</h3>
+            <p>${isComputer ? 'Computer' : 'You'} sunk a ${shipType}!</p>
+        `;
+        
+        // Show the announcement
+        sunkAnnouncement.classList.add('show');
+        
+        // Hide after 2.5 seconds
+        setTimeout(() => {
+            sunkAnnouncement.classList.remove('show');
+        }, 2500);
     }
        
     startGame() {
@@ -298,11 +513,14 @@ class GameDisplay {
         const gridBoxTwo = document.querySelector('.player-two-board');
         gridBoxTwo.addEventListener('click', this.fireAttackOnBoardHandler);
 
-        // Remove display for real player ships.
+        // Keep player ship visibility but reset background color
         const gridBoxOne = document.querySelector('.player-one-board');
         Array.from(gridBoxOne.children).forEach(cell => {
-            cell.style.backgroundColor = 'rgb(23, 23, 23)'; // Reset to the desired color
-        })
+            if (cell.classList.contains('player-ship')) {
+                // Keep the player-ship class for visibility
+                cell.style.backgroundColor = '';
+            }
+        });
 
         // Remove randomize and play buttons.
         const randomizeButton = document.getElementById('randomizeButton');
@@ -314,51 +532,41 @@ class GameDisplay {
 
     showEndGamePopup(winner) {
         // Create the popup container
+        const popupContainer = document.createElement('div');
+        popupContainer.classList.add('popup-container');
+    
+        // Create the popup
         const popup = document.createElement('div');
         popup.classList.add('popup');
     
-        // Create the popup content
-        const popupContent = document.createElement('div');
-        popupContent.classList.add('popup-content');
+        // Create the title
+        const title = document.createElement('h2');
+        title.textContent = 'Game Over';
     
         // Create the winner message
         const winnerMessage = document.createElement('p');
-        winnerMessage.textContent = `${winner} Win!`;
+        winnerMessage.textContent = `${winner} Won!`;
     
         // Create the restart button
         const restartButton = document.createElement('button');
         restartButton.classList.add('restart');
-        restartButton.textContent = 'Restart Game';
+        restartButton.textContent = 'Play Again';
         restartButton.addEventListener('click', () => {
             location.reload(); // Refresh the page to restart the game
         });
     
-        // Append elements to the popup content
-        popupContent.appendChild(winnerMessage);
-        popupContent.appendChild(restartButton);
+        // Append elements to the popup
+        popup.appendChild(title);
+        popup.appendChild(winnerMessage);
+        popup.appendChild(restartButton);
     
-        // Append popup content to the popup container
-        popup.appendChild(popupContent);
+        // Append popup to the container
+        popupContainer.appendChild(popup);
     
-        // Append the popup to the body
-        document.body.appendChild(popup);
-    
-        // Style the popup
-        popup.style.position = 'fixed';
-        popup.style.top = '50%';
-        popup.style.left = '50%';
-        popup.style.transform = 'translate(-50%, -50%)';
-        popup.style.backgroundColor = 'green';
-        popup.style.border = '2px solid azure';
-        popup.style.borderRadius = '5px';
-        popup.style.padding = '10px 20px';
-        popup.style.zIndex = '1000';
-        popup.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
-        popupContent.style.textAlign = 'center';
+        // Append the popup container to the body
+        document.body.appendChild(popupContainer);
     }
 
-
-    
     endGame(hitPlayerBoard) {
         console.log("Game ends...");
         const gridBoxOne = document.querySelector('.player-one-board');

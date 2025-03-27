@@ -10,6 +10,7 @@ This project is a JavaScript implementation of the classic Battleship game. The 
 - **Object-Oriented Programming**: The game is structured using classes such as `GameBoard`, `Player`, and `Ship` to encapsulate functionality and data.
 - **Asynchronous JavaScript**: The game uses asynchronous operations to handle computer moves, ensuring smooth gameplay.
 - **Testing**: Comprehensive unit tests are provided to ensure the correctness of the game logic using Jest.
+- **Modern Design**: Features a sleek, dark UI inspired by Cognition.ai with interactive hit announcements and ship tracking.
 
 ## Skills Demonstrated
 
@@ -36,7 +37,7 @@ This project is a JavaScript implementation of the classic Battleship game. The 
 
 2. Navigate to the project directory:
    ```bash
-   cd battleship-game
+   cd Project-Battleship-1
    ```
 
 3. Install dependencies:
@@ -44,12 +45,15 @@ This project is a JavaScript implementation of the classic Battleship game. The 
    npm install
    ```
 
-4. Compile the game:
+4. Run development server:
+   ```bash
+   npm run dev
+   ```
+
+5. Build for production:
    ```bash
    npm run build
    ```
-
-5. Run the game by opening the `index.html` file in the `dist` folder.
 
 ## Running Tests
 
@@ -60,5 +64,52 @@ npm test
 ## Project Structure
 
 - `src/`: Contains the source code for the game.
+  - `gameBoard.js`: Manages the game board state and logic.
+  - `ship.js`: Defines the Ship class and its behavior.
+  - `player.js`: Implements player behavior and actions.
+  - `gameDisplay.js`: Handles UI updates and user interactions.
+  - `resources/`: Contains CSS and font resources.
 - `tests/`: Contains unit tests for the game logic.
 - `dist/`: Contains the bundled output files.
+
+## Deployment on Vercel
+
+This project is configured for easy deployment on Vercel. Follow these steps:
+
+### Prerequisites
+
+1. Create a [Vercel account](https://vercel.com/signup) if you don't have one.
+2. Install the Vercel CLI:
+   ```bash
+   npm install -g vercel
+   ```
+
+### Deployment Steps
+
+1. Login to Vercel from the CLI:
+   ```bash
+   vercel login
+   ```
+
+2. Deploy the project (from project directory):
+   ```bash
+   vercel
+   ```
+
+3. For production deployment:
+   ```bash
+   vercel --prod
+   ```
+
+### Automatic Deployment with GitHub
+
+1. Push your code to a GitHub repository.
+2. Import the project in the Vercel dashboard.
+3. Configure the build settings:
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+4. Click "Deploy" and Vercel will automatically build and deploy your project.
+
+### Configuration
+
+The project includes a `vercel.json` file that configures how Vercel should build and serve the application. This ensures proper routing and static file serving.
